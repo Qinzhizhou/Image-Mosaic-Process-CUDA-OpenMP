@@ -1,9 +1,8 @@
 #include "cuda.cuh"
-
 #include <cstring>
-
 #include "helper.h"
-
+#include <stdio.h>
+#include <stdlib.h>
 ///
 /// Algorithm storage
 ///
@@ -43,23 +42,59 @@ void cuda_begin(const Image *input_image) {
 
     // Allocate and fill device buffer for storing input image data
     CUDA_CALL(cudaMalloc(&d_input_image_data, image_data_size));
+    // Host to device
     CUDA_CALL(cudaMemcpy(d_input_image_data, input_image->data, image_data_size, cudaMemcpyHostToDevice));
-
     // Allocate device buffer for storing output image data
     CUDA_CALL(cudaMalloc(&d_output_image_data, image_data_size));
-
     // Allocate and zero buffer for calculation global pixel average
     CUDA_CALL(cudaMalloc(&d_global_pixel_sum, input_image->channels * sizeof(unsigned long long)));
 }
+
+
+
+
+__global__ void tile_sum() {
+    int sum = 0;
+    // 应该是要shared 的 varaibles
+    __shared__ int tile_index;
+    __shared__ int tile_offset;
+    __shared__ int pixel_offset;
+
+
+
+}
+
+
+
+
+
+
+
+
 void cuda_stage1() {
-    // Optionally during development call the skip function with the correct inputs to skip this stage
-    // skip_tile_sum(input_image, mosaic_sum);
+   
+
 
 #ifdef VALIDATION
     // TODO: Uncomment and call the validation function with the correct inputs
     // You will need to copy the data back to host before passing to these functions
     // (Ensure that data copy is carried out within the ifdef VALIDATION so that it doesn't affect your benchmark results!)
     // validate_tile_sum(&input_image, mosaic_sum);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #endif
 }
 void cuda_stage2(unsigned char* output_global_average) {

@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-///
+
 /// Algorithm storage
 ///
 Image cpu_input_image;
@@ -68,6 +68,7 @@ void cpu_stage1() {
     validate_tile_sum(&cpu_input_image, cpu_mosaic_sum);
 #endif
 }
+
 void cpu_stage2(unsigned char* output_global_average) {
     // Calculate the average of each tile, and sum these to produce a whole image average.
     unsigned long long whole_image_sum[4] = {0, 0, 0, 0};  // Only 3 is required for the assignment, but this version hypothetically supports upto 4 channels
@@ -85,6 +86,7 @@ void cpu_stage2(unsigned char* output_global_average) {
     validate_compact_mosaic(cpu_TILES_X, cpu_TILES_Y, cpu_mosaic_sum, cpu_mosaic_value, output_global_average);
 #endif
 }
+
 void cpu_stage3() {
     // Broadcast the compact mosaic pixels back out to the full image size
     // For each tile
