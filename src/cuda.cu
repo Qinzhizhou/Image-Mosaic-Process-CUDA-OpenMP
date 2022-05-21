@@ -3,9 +3,8 @@
 #include "helper.h"
 #include <stdio.h>
 #include <stdlib.h>
-///
+
 /// Algorithm storage
-///
 // Host copy of input image
 Image cuda_input_image;
 // Host copy of image tiles in each dimension
@@ -53,16 +52,6 @@ void cuda_begin(const Image *input_image) {
 
 
 
-__global__ void tile_sum() {
-    int sum = 0;
-    // 应该是要shared 的 varaibles
-    __shared__ int tile_index;
-    __shared__ int tile_offset;
-    __shared__ int pixel_offset;
-
-
-
-}
 
 
 
@@ -73,8 +62,6 @@ __global__ void tile_sum() {
 
 void cuda_stage1() {
    
-
-
 #ifdef VALIDATION
     // TODO: Uncomment and call the validation function with the correct inputs
     // You will need to copy the data back to host before passing to these functions
@@ -121,11 +108,11 @@ void cuda_stage3() {
 }
 void cuda_end(Image *output_image) {
     // This function matches the provided cuda_begin(), you may change it if desired
-
     // Store return value
     output_image->width = cuda_input_image.width;
     output_image->height = cuda_input_image.height;
     output_image->channels = cuda_input_image.channels;
+   
     CUDA_CALL(cudaMemcpy(output_image->data, d_output_image_data, output_image->width * output_image->height * output_image->channels * sizeof(unsigned char), cudaMemcpyDeviceToHost));
     // Release allocations
     free(cuda_input_image.data);
