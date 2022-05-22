@@ -49,7 +49,7 @@ void openmp_stage1() {
     int tile_index, tile_offset, pixel_offset ;
     char pixel;
     
-#pragma omp parallel for collapse(4)  default (none) private(t_x, t_y,  tile_index, tile_offset, pixel_offset, p_x, p_y, ch) shared (openmp_mosaic_sum) schedule(static,12) // reduction( +: openmp_mosaic_sum[tile_index + ch])
+#pragma omp parallel for collapse(2)  default (none) private(t_x, t_y,  tile_index, tile_offset, pixel_offset, p_x, p_y, ch) shared (openmp_mosaic_sum) schedule(dynamic) // reduction( +: openmp_mosaic_sum[tile_index + ch])
     for (t_x = 0; t_x < openmp_TILES_X; ++t_x) 
     for (t_y = 0; t_y < openmp_TILES_Y; ++t_y)
     {
@@ -91,7 +91,7 @@ void openmp_stage2(unsigned char* output_global_average) {
     unsigned long long whole_image_sum[4] = { 0, 0, 0, 0 };  // Only 3 is required for the assignment, but this version hypothetically supports upto 4 channels
     int t, ch;
     
-    #pragma omp parallel for private(ch) schedule(dynamic) // why not static
+    #pragma omp parallel for private(ch) schedule(static) // why not static
     //#pragma omp parallel  for default (none) private(t, ch)
     for (t = 0; t < openmp_TILES_X * openmp_TILES_Y; ++t) {
         for (ch = 0; ch < openmp_input_image.channels; ++ch) {
@@ -126,7 +126,7 @@ void openmp_stage3() { // 1.665
 
 
 
-#pragma omp parallel for default (none) private(t_x, t_y,  tile_index, tile_offset, pixel_offset, p_x, p_y, ch) shared (openmp_mosaic_sum) schedule(static,12)
+#pragma omp parallel for collapse(2) private(t_x, t_y,  tile_index, tile_offset, pixel_offset, p_x, p_y, ch) shared (openmp_mosaic_sum) schedule(dynamic)
     for (t_x = 0; t_x < openmp_TILES_X; ++t_x) {
         for (t_y = 0; t_y < openmp_TILES_Y; ++t_y) {
             tile_index = (t_y * openmp_TILES_X + t_x) * openmp_input_image.channels;

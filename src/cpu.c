@@ -1,21 +1,16 @@
 #include "cpu.h"
 #include "helper.h"
-
 #include <stdlib.h>
 #include <string.h>
 
-
 /// Algorithm storage
-///
+
 Image cpu_input_image;
 Image cpu_output_image;
 unsigned int cpu_TILES_X, cpu_TILES_Y;
 unsigned long long* cpu_mosaic_sum;
 unsigned char* cpu_mosaic_value;
-
-///
 /// Implementation
-///
 void cpu_begin(const Image *input_image) {
     cpu_TILES_X = input_image->width / TILE_SIZE;
     cpu_TILES_Y = input_image->height / TILE_SIZE;
@@ -41,8 +36,6 @@ void cpu_begin(const Image *input_image) {
 //在此阶段，加载每个图块的像素并将它们的像素相加以产生 3 个颜色通道中的每一个的总和。
 //方法 cpu_stage1() 提供了算法这一阶段的单线程实现。方法 validate_tile_sum(...) 和 skip_tile_sum(...) 可用于验证或跳过此阶段的输出。但是，这两个函数都需要指向与 CPU 参考实现的布局和顺序相匹配的主机内存的指针。
 void cpu_stage1() {
-
-    
     // Reset sum memory to 0
     memset(cpu_mosaic_sum, 0, cpu_TILES_X * cpu_TILES_Y * cpu_input_image.channels * sizeof(unsigned long long));
     // Sum pixel data within each tile
