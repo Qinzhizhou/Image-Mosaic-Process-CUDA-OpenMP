@@ -69,7 +69,7 @@ void openmp_stage1() {
                     {
                         // Load pixel
                         const unsigned char pixel = openmp_input_image.data[tile_offset + pixel_offset + ch];
-//#pragma omp critical
+
                         openmp_mosaic_sum[tile_index + ch] += pixel;
                     }
                 }
@@ -96,11 +96,12 @@ void openmp_stage2(unsigned char* output_global_average) {
     for (t = 0; t < openmp_TILES_X * openmp_TILES_Y; ++t) {
         for (ch = 0; ch < openmp_input_image.channels; ++ch) {
             openmp_mosaic_value[t * openmp_input_image.channels + ch] = (unsigned char)(openmp_mosaic_sum[t * openmp_input_image.channels + ch] / TILE_PIXELS);  //average of each tile
+#pragma omp critical
             whole_image_sum[ch] += openmp_mosaic_value[t * openmp_input_image.channels + ch];// sum these to produce a whole image average.
         }
     }
     // Reduce the whole image sum to whole image average for the return value
-    //#pragma omp critical
+
     for (int ch = 0; ch < openmp_input_image.channels; ++ch) {
         output_global_average[ch] = (unsigned char)(whole_image_sum[ch] / (openmp_TILES_X * openmp_TILES_Y));
     }

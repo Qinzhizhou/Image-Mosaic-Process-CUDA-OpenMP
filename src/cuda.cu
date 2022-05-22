@@ -1,7 +1,5 @@
 #include "cuda.cuh"
-
 #include <cstring>
-
 #include "helper.h"
 
 ///
@@ -11,16 +9,17 @@
 Image cuda_input_image;
 // Host copy of image tiles in each dimension
 unsigned int cuda_TILES_X, cuda_TILES_Y;
-
-// device copy of image's width and height
+// zhou: device copy of image's width and height
 __device__ int d_width;
 __device__ int d_height;
-// device copy of nums of TILES in x-direction and y-direction
+// zhou: device copy of nums of TILES in x-direction and y-direction
 __device__ int d_TILES_X;
 __device__ int d_TILES_Y;
 
-//defien the function globally
+// zhou: a global function for calculating mosaic sum
 __global__ void calMosaicSum(unsigned char* d_input_image_data, unsigned long long* d_mosaic_sum);
+// zhou: a global function for calculating mosaic value
+__global__ void calMosaicValue(unsigned char* d_mosaic_value, unsigned long long* d_mosaic_sum);
 
 // Pointer to device buffer for calculating the sum of each tile mosaic, this must be passed to a kernel to be used on device
 unsigned long long* d_mosaic_sum;
@@ -33,11 +32,13 @@ unsigned char* d_output_image_data;
 // Pointer to device buffer for the global pixel average sum, this must be passed to a kernel to be used on device
 unsigned long long* d_global_pixel_sum;
 
-void cuda_begin(const Image *input_image) {
+void cuda_begin(const Image* input_image) {
     // These are suggested CUDA memory allocations that match the CPU implementation
     // If you would prefer, you can rewrite this function (and cuda_end()) to suit your preference
+
     cuda_TILES_X = input_image->width / TILE_SIZE;
     cuda_TILES_Y = input_image->height / TILE_SIZE;
+
     // Allocate buffer for calculating the sum of each tile mosaic
     CUDA_CALL(cudaMalloc(&d_mosaic_sum, cuda_TILES_X * cuda_TILES_Y * input_image->channels * sizeof(unsigned long long)));
 
@@ -51,35 +52,35 @@ void cuda_begin(const Image *input_image) {
     memcpy(cuda_input_image.data, input_image->data, image_data_size);
 
     // zhou:  Allocate device copy of width and height
-    CUDA_CALL(cudaMemcpyToSymbol(d_width,(void*)&input_image->width, sizeof(int)));
-    CUDA_CALL(cudaMemcpyToSymbol(d_height,(void*)&input_image->height, sizeof(int)));
-    CUDA_CALL(cudaMemcpyToSymbol(d_TILES_X,(void*)&cuda_TILES_X, sizeof(int)));
-    CUDA_CALL(cudaMemcpyToSymbol(d_TILES_Y,(void*)&cuda_TILES_Y, sizeof(int)));
+    CUDA_CALL(cudaMemcpyToSymbol(d_width, (void*)&input_image->width, sizeof(int)));
+    CUDA_CALL(cudaMemcpyToSymbol(d_height, (void*)&input_image->height, sizeof(int)));
+    CUDA_CALL(cudaMemcpyToSymbol(d_TILES_X, (void*)&cuda_TILES_X, sizeof(int)));
+    CUDA_CALL(cudaMemcpyToSymbol(d_TILES_Y, (void*)&cuda_TILES_Y, sizeof(int)));
+
     // Allocate and fill device buffer for storing input image data
     CUDA_CALL(cudaMalloc(&d_input_image_data, image_data_size));
     CUDA_CALL(cudaMemcpy(d_input_image_data, input_image->data, image_data_size, cudaMemcpyHostToDevice));
+
     // Allocate device buffer for storing output image data
     CUDA_CALL(cudaMalloc(&d_output_image_data, image_data_size));
+
     // Allocate and zero buffer for calculation global pixel average
     CUDA_CALL(cudaMalloc(&d_global_pixel_sum, input_image->channels * sizeof(unsigned long long)));
 }
 
 // zhou: a global function for calculating mosaic sum
-
-__global__ void calMosaicSum(unsigned char* d_input_image_data, unsigned long long*d_mosaic_sum){
-    // use the indexes of threads to obtain tile_index and tile_offset. Here,
+__global__ void calMosaicSum(unsigned char* d_input_image_data, unsigned long long* d_mosaic_sum) {
+    // zhou: use the indexes of threads to obtain tile_index and tile_offset. Here,
     // threadIdx.x is similar with t_x in cpu_stage1()
     // blockIdx.x is similar with t_y in cpu_stage1()
     // blockDim.x is similar with cpu_TILES_X in cpu_stage1()
-    
     // Therefor, one thread in used for control one tile_index
-    const unsigned int tile_index = (blockDim.x * blockIdx.x + threadIdx.x) * CHANNELS; // Tile_id
-    const unsigned int tile_offset = (blockDim.x * blockIdx.x * TILE_SIZE * TILE_SIZE +  threadIdx.x * TILE_SIZE) * CHANNELS;// Offset
-    
-    // skip the threads which are out of index 
+    const unsigned int tile_index = (blockDim.x * blockIdx.x + threadIdx.x) * CHANNELS;
+    const unsigned int tile_offset = (blockDim.x * blockIdx.x * TILE_SIZE * TILE_SIZE + threadIdx.x * TILE_SIZE) * CHANNELS;
+    // zhou: skip the threads which are out of index 
     if (tile_index >= d_TILES_X * d_TILES_Y * CHANNELS)
         return;
-    
+
     // For each pixel within the tile
     for (int p_x = 0; p_x < TILE_SIZE; ++p_x) {
         for (int p_y = 0; p_y < TILE_SIZE; ++p_y) {
@@ -95,47 +96,90 @@ __global__ void calMosaicSum(unsigned char* d_input_image_data, unsigned long lo
     return;
 }
 
-void cuda_stage1() { // 529.995 seconds in CPU 293.218 in GPU
-    // initialize sizes of block and gird
-    dim3 block = cuda_TILES_X; // 
+void cuda_stage1() {
+    // Optionally during development call the skip function with the correct inputs to skip this stage
+    // skip_tile_sum(input_image, mosaic_sum);
+
+    // zhou: initialize sizes of block and gird
+    dim3 block = cuda_TILES_X;
     dim3 grid = ((cuda_TILES_X * cuda_TILES_Y + block.x - 1) / block.x);
-    
-    // Kernal function 
-    calMosaicSum<<<block, grid>>>(d_input_image_data, d_mosaic_sum); // <<< 32, (32*32 + x - 1)/x 
+    // zhou: call the global function calMosaicSum()
+    calMosaicSum << <block, grid >> > (d_input_image_data, d_mosaic_sum);
 
 #ifdef VALIDATION
+    // TODO: Uncomment and call the validation function with the correct inputs
     // You will need to copy the data back to host before passing to these functions
     // (Ensure that data copy is carried out within the ifdef VALIDATION so that it doesn't affect your benchmark results!)
-    // delcare and allocate memory of test_mosaic_sum for validation
+
+    // zhou: delcare and allocate memory of test_mosaic_sum for validation
     unsigned long long* test_mosaic_sum = (unsigned long long*)malloc(cuda_TILES_X * cuda_TILES_Y * cuda_input_image.channels * sizeof(unsigned long long));
-    
-    // copy the data back to host
+    // zhou:  copy the data back to host
     CUDA_CALL(cudaMemcpy(test_mosaic_sum, d_mosaic_sum, cuda_TILES_X * cuda_TILES_Y * cuda_input_image.channels * sizeof(unsigned long long), cudaMemcpyDeviceToHost));
-   validate_tile_sum(&cuda_input_image, test_mosaic_sum);
-   #endif
+
+    validate_tile_sum(&cuda_input_image, test_mosaic_sum);
+
+#endif
+}
+
+// zhou: a global function for calculating mosaic value, 
+// which is equal to the corresponding mosaic sum over TILE_PIXELS in array d_mosaic_sum
+// Since the global average is actually not used in picture mosaicization but only for validation
+// we only calculate mosaic value for each tile in device but remain the calculation of global average in host.
+__global__ void calMosaicValue(unsigned char* d_mosaic_value, unsigned long long* d_mosaic_sum) {
+    // zhou: use the indexes of threads to obtain tile_index. Here,
+    // (blockDim.x * blockIdx.x + threadIdx.x) is similar with t in cpu_stage2()
+    // Therefor, one thread in used for control one tile_index
+    const unsigned int tile_index_ch = (blockDim.x * blockIdx.x + threadIdx.x);
+    // zhou: skip the threads which are out of index 
+    if (tile_index_ch >= d_TILES_X * d_TILES_Y * CHANNELS)
+        return;
+    // for (int ch = 0; ch < CHANNELS; ++ch) 
+    d_mosaic_value[tile_index_ch] = (unsigned char)(d_mosaic_sum[tile_index_ch] / TILE_PIXELS);  // Integer division is fine here
+    return;
 }
 
 
 void cuda_stage2(unsigned char* output_global_average) {
     // Optionally during development call the skip function with the correct inputs to skip this stage
     // skip_compact_mosaic(cuda_TILES_X, cuda_TILES_Y, mosaic_sum, compact_mosaic, global_pixel_average);
-    // Calculate the average of each tile, and sum these to produce a whole image average.
-  
+
+    // zhou: initialize sizes of block and gird
+    dim3 block = cuda_TILES_X;
+    dim3 grid = ((cuda_TILES_X * cuda_TILES_Y * cuda_input_image.channels + block.x - 1) / block.x);
+    // zhou: call the global function calMosaicValue()
+    calMosaicValue << <block, grid >> > (d_mosaic_value, d_mosaic_sum);
 
 
 #ifdef VALIDATION
     // TODO: Uncomment and call the validation functions with the correct inputs
     // You will need to copy the data back to host before passing to these functions
     // (Ensure that data copy is carried out within the ifdef VALIDATION so that it doesn't affect your benchmark results!)
-    // validate_compact_mosaic(TILES_X, TILES_Y, mosaic_sum, mosaic_value, output_global_average);
+    // zhou: delcare and allocate memory of test_mosaic_value for validation
+    unsigned char* test_mosaic_value = (unsigned char*)malloc(cuda_TILES_X * cuda_TILES_Y * cuda_input_image.channels * sizeof(unsigned char));
+    // zhou:  copy the data back to host
+    CUDA_CALL(cudaMemcpy(test_mosaic_value, d_mosaic_value, cuda_TILES_X * cuda_TILES_Y * cuda_input_image.channels * sizeof(unsigned char), cudaMemcpyDeviceToHost));
+
+    // zhou: Calculate sum of the average of each tile to produce a whole image average.
+    unsigned long long whole_image_sum[4] = { 0, 0, 0, 0 };  // Only 3 is required for the assignment, but this version hypothetically supports upto 4 channels
+    for (unsigned int t = 0; t < cuda_TILES_X * cuda_TILES_Y; ++t) {
+        for (int ch = 0; ch < cuda_input_image.channels; ++ch) {
+            whole_image_sum[ch] += test_mosaic_value[t * cuda_input_image.channels + ch];
+        }
+    }
+    for (int ch = 0; ch < CHANNELS; ++ch) {
+        output_global_average[ch] = (unsigned char)(whole_image_sum[ch] / (cuda_TILES_X * cuda_TILES_Y));
+    }
+
+    // zhou: delcare and allocate memory of test_mosaic_sum for validation
+    unsigned long long* test_mosaic_sum = (unsigned long long*)malloc(cuda_TILES_X * cuda_TILES_Y * cuda_input_image.channels * sizeof(unsigned long long));
+    // zhou:  copy the data back to host
+    CUDA_CALL(cudaMemcpy(test_mosaic_sum, d_mosaic_sum, cuda_TILES_X * cuda_TILES_Y * cuda_input_image.channels * sizeof(unsigned long long), cudaMemcpyDeviceToHost));
+    validate_compact_mosaic(cuda_TILES_X, cuda_TILES_Y, test_mosaic_sum, test_mosaic_value, output_global_average);
+
+
+
 #endif    
 }
-
-
-
-
-
-
 void cuda_stage3() {
     // Optionally during development call the skip function with the correct inputs to skip this stage
     // skip_broadcast(cuda_input_image, compact_mosaic, d_output_image);
@@ -147,9 +191,7 @@ void cuda_stage3() {
     // validate_broadcast(&input_image, mosaic_value, &output_image);
 #endif    
 }
-
-
-void cuda_end(Image *output_image) {
+void cuda_end(Image* output_image) {
     // This function matches the provided cuda_begin(), you may change it if desired
 
     // Store return value
