@@ -1,11 +1,10 @@
 #ifndef __cuda_cuh__
 #define __cuda_cuh__
 
-
-
 #include <cuda_runtime.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 #include "common.h"
 
 /**
@@ -17,10 +16,6 @@ void cuda_begin(const Image *input_image);
 /**
  * Calculate the sum of pixel values for each individual tile
  */
-
-
-//__global__ void calMosaicSum(unsigned char* d_input_image_data, unsigned long long* d_mosaic_sum);
-
 void cuda_stage1();
 /**
  * Convert the sums of tile pixel values to averages and calculate the whole image pixel average

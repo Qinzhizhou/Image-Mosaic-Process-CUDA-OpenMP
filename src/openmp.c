@@ -46,17 +46,17 @@ void openmp_stage1() {
 
     // Sum pixel data within each tile
     int t_x, t_y, p_x, p_y, ch;  // looper index 
-    int tile_index, tile_offset, pixel_offset ;
+   // int tile_index, tile_offset, pixel_offset ;
     char pixel;
     
-#pragma omp parallel for collapse(2)  default (none) private(t_x, t_y,  tile_index, tile_offset, pixel_offset, p_x, p_y, ch) shared (openmp_mosaic_sum) schedule(dynamic) // reduction( +: openmp_mosaic_sum[tile_index + ch])
+#pragma omp parallel for collapse(2) private(t_x, t_y, p_x, p_y, ch) shared (openmp_mosaic_sum) schedule(dynamic, 4) // reduction( +: openmp_mosaic_sum[tile_index + ch])
     for (t_x = 0; t_x < openmp_TILES_X; ++t_x) 
     for (t_y = 0; t_y < openmp_TILES_Y; ++t_y)
     {
-            tile_index = (t_y * openmp_TILES_X + t_x) * openmp_input_image.channels;
+            int tile_index = (t_y * openmp_TILES_X + t_x) * openmp_input_image.channels;
             
             // all indexes in the cell
-            tile_offset = (t_y * openmp_TILES_X * TILE_SIZE * TILE_SIZE + t_x * TILE_SIZE) * openmp_input_image.channels;
+            int tile_offset = (t_y * openmp_TILES_X * TILE_SIZE * TILE_SIZE + t_x * TILE_SIZE) * openmp_input_image.channels;
             
             // For each pixel within the tile
             //#pragma omp parallel for collapse(2) private(p_x, p_y)// shared (openmp_mosaic_sum) schedule(static, 8)
@@ -64,12 +64,11 @@ void openmp_stage1() {
             for (p_y = 0; p_y < TILE_SIZE; ++p_y) 
             {
                     // For each colour channel
-                    pixel_offset = (p_y * openmp_input_image.width + p_x) * openmp_input_image.channels;
+                    int pixel_offset = (p_y * openmp_input_image.width + p_x) * openmp_input_image.channels;
                     for (ch = 0; ch < openmp_input_image.channels; ++ch) 
                     {
                         // Load pixel
                         const unsigned char pixel = openmp_input_image.data[tile_offset + pixel_offset + ch];
-
                         openmp_mosaic_sum[tile_index + ch] += pixel;
                     }
                 }
@@ -91,12 +90,12 @@ void openmp_stage2(unsigned char* output_global_average) {
     unsigned long long whole_image_sum[4] = { 0, 0, 0, 0 };  // Only 3 is required for the assignment, but this version hypothetically supports upto 4 channels
     int t, ch;
     
-    #pragma omp parallel for private(ch) schedule(static) // why not static
-    //#pragma omp parallel  for default (none) private(t, ch)
+    #pragma omp parallel for private(t, ch) schedule(static) // why not static
     for (t = 0; t < openmp_TILES_X * openmp_TILES_Y; ++t) {
+    #pragma omp critical
         for (ch = 0; ch < openmp_input_image.channels; ++ch) {
+            // #pragma omp critical
             openmp_mosaic_value[t * openmp_input_image.channels + ch] = (unsigned char)(openmp_mosaic_sum[t * openmp_input_image.channels + ch] / TILE_PIXELS);  //average of each tile
-#pragma omp critical
             whole_image_sum[ch] += openmp_mosaic_value[t * openmp_input_image.channels + ch];// sum these to produce a whole image average.
         }
     }
@@ -112,20 +111,11 @@ void openmp_stage2(unsigned char* output_global_average) {
 #endif    
 }
 
-
-// serial 154.966
-// collapse 
 void openmp_stage3() { // 1.665
 
     int t_x, t_y, p_x, p_y, ch;  // looper index 
     int tile_index, tile_offset, pixel_offset;
     char pixel;
-
-    // #pragma omp parallel  for num_threads(8) collapse(2)  default (none) private(t_x, t_y, tile_index, tile_offset, p_x, p_y, ch) shared (openmp_mosaic_sum) schedule(static, 1)
-    // Optionally during development call the skip function with the correct inputs to skip this stage
-    // skip_broadcast(input_image, compact_mosaic, output_image);
-
-
 
 #pragma omp parallel for collapse(2) private(t_x, t_y,  tile_index, tile_offset, pixel_offset, p_x, p_y, ch) shared (openmp_mosaic_sum) schedule(dynamic)
     for (t_x = 0; t_x < openmp_TILES_X; ++t_x) {
@@ -144,7 +134,6 @@ void openmp_stage3() { // 1.665
     }
 
 #ifdef VALIDATION
-    // TODO: Uncomment and call the validation function with the correct inputs
     validate_broadcast(&openmp_input_image, openmp_mosaic_value, &openmp_output_image);
 #endif    
 }
