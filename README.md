@@ -31,10 +31,9 @@ Executable with build the project in Visual studio  with argument
 ```sh
 mosaic M -i input_file -o output_file 
 where:
-        M              Is the mode with a value of either CPU, OPENMP, CUDA or
-                       ALL. The mode specifies which version of the simulation
-                       code should execute. ALL should execute each mode in
-                       turn.
+        M              Is the mode with a value of either CPU, OPENMP OR CUDA. 
+                       The mode specifies which version of the simulation
+                       code should execute. 
         -i input_file  Specifies an input image file
         -o output_file Specifies an output image file which will be used
                        to write the mosaic image
