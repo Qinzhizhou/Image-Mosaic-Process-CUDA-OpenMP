@@ -1,7 +1,10 @@
 # Image Masiac with CUDA and OpenMP
-This is a pure C implementation of image mosaic compared with CPU, OpenMP and CUDA acceleration. The input image can be png or jpg files witch shown im samples,
-it looks like:
+This is a pure C implementation of image mosaic compared with CPU, OpenMP and CUDA acceleration. The input image can be png or jpg files witch shown im samples.
 
+# Results of speed comparision
+![alt text](Performance_compare.png)
+
+The input image can be any size jpg and png file such as below:  
 Source image from wallpaper here:
 ![alt text](anime.jpg)
 
