@@ -20,7 +20,7 @@ After masic:
 ## Usage
 Download the repository and change directory to the workspace
 ```sh
-git clone [https://github.com/yzheng51/image-processing.git](https://github.com/Qinzhizhou/Image-Masaic-Process-CUDA-OpenMP.git)
+git clone [https://github.com/Qinzhizhou/Image-Masaic-Process-CUDA-OpenMP.git](https://github.com/Qinzhizhou/Image-Masaic-Process-CUDA-OpenMP.git)
 cd Image-Masaic-Process-CUDA-OpenMP
 ```
 
